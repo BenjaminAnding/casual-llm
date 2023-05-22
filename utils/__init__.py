@@ -2,7 +2,39 @@ import os
 import logging
 import platform
 import logging.config
+import torch
+import torch.mps
 
+
+class GPU:
+    def __init__(self, is_init_device=False, empty_cache=False) -> None:
+        self.gpu_allocation = {}
+        self.is_cuda = torch.cuda.is_available()
+        self.is_mps = torch.has_mps
+        self.device_init = torch.device(f'mps') if self.is_mps else torch.device(f'cuda') if self.is_cuda else torch.device(f'cpu')
+        if is_init_device and not self.is_cuda and not self.is_mps: torch.device(f'cpu')
+        if self.is_mps:
+            gpu_mem_alloc = torch.mps.current_allocated_memory() / (1024 ** 3)  # Convert bytes to gigabytes
+            gpu_mem_cached = torch.mps.driver_allocated_memory() / (1024 ** 3) - gpu_mem_alloc  # Convert bytes to gigabytes
+            self.gpu_allocation[f'GPU{0}'] = {'name': 'MPS', 'memory_allocated': f'{gpu_mem_alloc:.2f}G', 'memory_reserved': f'{gpu_mem_cached:.2f}G'}
+        if self.is_cuda: 
+            for i in range(torch.cuda.device_count()):
+                cuda_device = torch.device(f'cuda:{i}')
+                torch.cuda.set_device(cuda_device)
+                gpu_mem_alloc = torch.cuda.memory_allocated() / (1024 ** 3)  # Convert bytes to gigabytes
+                gpu_mem_cached = torch.cuda.memory_reserved() / (1024 ** 3)  # Convert bytes to gigabytes
+                cuda_name = torch.cuda.get_device_name(cuda_device)
+                self.gpu_allocation[f'GPU{i}'] = {'name': cuda_name, 'memory_allocated': f'{gpu_mem_alloc:.2f}G','memory_reserved': f'{gpu_mem_cached:.2f}G'}
+        self.gpu_mem_description = f"{gpu_mem_alloc:.2f}G/{gpu_mem_cached:.2f}G" if self.is_cuda or self.is_mps else f"0.00G/0.00G"
+        if empty_cache or is_init_device:
+            if self.is_cuda: torch.cuda.empty_cache()
+            if self.is_mps: torch.mps.empty_cache()
+
+    def device(self) -> str:
+        return self.device_init
+
+GPU_DEVICE = GPU(is_init_device=True)
+DEVICE = GPU_DEVICE.device()
 LOGGING_NAME = 'CASUAL LLM'
 VERBOSE = True
 MACOS, LINUX, WINDOWS = (platform.system() == x for x in ['Darwin', 'Linux', 'Windows'])  # environment booleans
@@ -78,3 +110,18 @@ if WINDOWS and EMOJI_SAFE_LOGGING:  # emoji-safe logging
     LOGGER.addFilter(EmojiFilter())
 
 DEBUG_PREFIX = f"{colorstr('bright_yellow', 'DEBUG')} 🪲  - "
+
+
+p_int_length = 40
+
+def main_interface(conversation: str):
+    # if WINDOWS: os.system("cls")
+    # else: os.system("clear")
+    print("="*p_int_length)
+    print("Options:")
+    print("1. Create Prompt")
+    print("2. Display Text")
+    print("3. Generate Text")
+    print("4. Exit")
+    print(conversation)
+    print("="*p_int_length)

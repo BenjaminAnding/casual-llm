@@ -76,3 +76,5 @@ set_logging(LOGGING_NAME, verbose=VERBOSE)  # run before defining LOGGER
 LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, val.py, detect.py, etc.)
 if WINDOWS and EMOJI_SAFE_LOGGING:  # emoji-safe logging
     LOGGER.addFilter(EmojiFilter())
+
+DEBUG_PREFIX = f"{colorstr('bright_yellow', 'DEBUG')} 🪲  - "

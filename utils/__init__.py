@@ -4,6 +4,7 @@ import platform
 import logging.config
 import torch
 import torch.mps
+import textwrap
 
 
 class GPU:
@@ -109,19 +110,13 @@ LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, v
 if WINDOWS and EMOJI_SAFE_LOGGING:  # emoji-safe logging
     LOGGER.addFilter(EmojiFilter())
 
-DEBUG_PREFIX = f"{colorstr('bright_yellow', 'DEBUG')} 🪲  - "
+max_width = 128
 
-
+DEBUG_PREFIX = f"🪲  {colorstr('bright_yellow', 'DEBUG')} - "
+RLPX = '\033[F' + ' '*max_width + '\033[F' 
 p_int_length = 40
+ITF_MAIN = "[1. Prompt+Response] [2. Prompt+Review] [3. Get Response] [4. Exit]: "
 
-def main_interface(conversation: str):
-    # if WINDOWS: os.system("cls")
-    # else: os.system("clear")
-    print("="*p_int_length)
-    print("Options:")
-    print("1. Create Prompt")
-    print("2. Display Text")
-    print("3. Generate Text")
-    print("4. Exit")
-    print(conversation)
-    print("="*p_int_length)
+def print_limited_width(string, max_width):
+    wrapped_text = textwrap.fill(string, width=max_width)
+    print("\n", wrapped_text, "\n")

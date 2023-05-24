@@ -14,7 +14,9 @@ def install():
     brks = ["{", "}"]
 
     # packages required
+    # pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch-nightly -c nvidia
     packages = ["transformers"]
+    pip_only_packages = ["accelerate"]
     
     # error messages
     no_arg_error = colorstr("cyan", f'Use `conda {brks[0]}env_name{brks[1]}` or `pip` for argument\n')
@@ -34,6 +36,9 @@ def install():
             for package in packages:
                 LOGGER.info(" ✅  " + colorstr("green", f"Installing {package}") + "\n")
                 os.system(f'pip install {package}')
+            for package in pip_only_packages:
+                LOGGER.info(" ✅  " + colorstr("green", f"Installing {package}") + "\n")
+                os.system(f'pip install {package}')
         except:
             # error
             LOGGER.error(f'{e_prefix}Package `{package}` failed to install using `pip`.\n', exc_info=1)
@@ -41,6 +46,7 @@ def install():
     # Installation with conda
     elif f_arg == 'conda':
         if conda_env is not None:
+            os.system(f"conda activate {conda_env}")
             # conda with env
             LOGGER.info(colorstr("cyan", f"- Installing with `conda` in `{conda_env}` environment\n"))
             try:
@@ -48,6 +54,9 @@ def install():
                 for package in packages:
                     LOGGER.info(" ✅  " + colorstr("green", f"Installing {package}") + "\n")
                     os.system(f"conda install -n {conda_env} {package}")
+                for package in pip_only_packages:
+                    LOGGER.info(" ✅  " + colorstr("green", f"Installing {package}") + "\n")
+                    os.system(f'pip install {package}')
                 LOGGER.info("\n- " + colorstr("cyan", f"✅  Done.\n"))
             except:
                 # error

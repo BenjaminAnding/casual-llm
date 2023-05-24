@@ -1,7 +1,33 @@
+from datetime import datetime
 import os
 import logging
 import platform
 import logging.config
+import torch
+import torch.mps
+import textwrap
+
+
+def get_working_directory(): return os.getcwd()
+
+def get_checkpoint_directory(checkpoint_folder): return os.path.join(get_working_directory(), checkpoint_folder)
+
+def directory_exists(directory_name):
+    # Get the current working directory
+    current_dir = get_working_directory()
+
+    # Construct the full path to the directory within the project
+    directory_path = os.path.join(current_dir, directory_name)
+
+    # Check if the directory exists
+    if os.path.exists(directory_path):
+        return True
+    else:
+        return False
+    
+def clear_console():
+    if WINDOWS: os.system("cls")
+    else: os.system("clear")
 
 LOGGING_NAME = 'CASUAL LLM'
 VERBOSE = True
@@ -77,4 +103,69 @@ LOGGER = logging.getLogger(LOGGING_NAME)  # define globally (used in train.py, v
 if WINDOWS and EMOJI_SAFE_LOGGING:  # emoji-safe logging
     LOGGER.addFilter(EmojiFilter())
 
-DEBUG_PREFIX = f"{colorstr('bright_yellow', 'DEBUG')} 🪲  - "
+def log_prompt(who: str, msg: str):
+        """
+        Writes defined msg to the `conversations.txt` file.
+
+        Format: `[YYYY.mm.dd.HH.MM.SS] [type] [log]`
+
+        Args:
+            `who`: A string; applied before the `msg` arg; the content creator.
+            `msg`: A string; the main content.
+
+        Returns:
+            `Void`
+        """
+        # Open the file in append mode and create it if it doesn't exist
+        with open("conversations.txt", "a+") as f:
+            # Get the current date and time
+            now = datetime.now()
+
+            # Format the date and time as [YYYY.MM.DD.SS]
+            formatted_date_time = now.strftime("%Y.%m.%d.%H.%M.%S")
+            f.write(f'[{formatted_date_time}]\n{who}: ' + msg + "\n")
+
+max_width = 128
+WARNING_PREFIX = f"⚠️  {colorstr('bright_yellow', 'WARNING')} - "
+DEBUG_PREFIX = f"🪲  {colorstr('bright_black', 'DEBUG')} - "
+RLPX = '\033[F' + ' '*max_width + '\033[F' 
+p_int_length = 40
+
+
+
+# ITF_MAIN = " Enter to Start ↵ \n 2 - Prompt reviews\n 3 - Response to lastest prompt\n 4 - Exit\n : "
+ITF_MAIN = "\033[F- Enter to prompt ↵ -- exit with `4` - "
+
+
+class GPU:
+    def __init__(self, is_init_device=False, empty_cache=False) -> None:
+        self.gpu_allocation = {}
+        self.is_cuda = torch.cuda.is_available()
+        self.is_mps = torch.has_mps
+        self.device_init = torch.device(f'mps') if self.is_mps else torch.device(f'cuda') if self.is_cuda else torch.device(f'cpu')
+        if is_init_device and not self.is_cuda and not self.is_mps: torch.device(f'cpu')
+        if self.is_mps:
+            gpu_mem_alloc = torch.mps.current_allocated_memory() / (1024 ** 3)  # Convert bytes to gigabytes
+            gpu_mem_cached = torch.mps.driver_allocated_memory() / (1024 ** 3) - gpu_mem_alloc  # Convert bytes to gigabytes
+            self.gpu_allocation[f'GPU{0}'] = {'name': 'MPS', 'memory_allocated': f'{gpu_mem_alloc:.2f}G', 'memory_reserved': f'{gpu_mem_cached:.2f}G'}
+        if self.is_cuda: 
+            for i in range(torch.cuda.device_count()):
+                cuda_device = torch.device(f'cuda:{i}')
+                torch.cuda.set_device(cuda_device)
+                gpu_mem_alloc = torch.cuda.memory_allocated() / (1024 ** 3)  # Convert bytes to gigabytes
+                gpu_mem_cached = torch.cuda.memory_reserved() / (1024 ** 3)  # Convert bytes to gigabytes
+                cuda_name = torch.cuda.get_device_name(cuda_device)
+                self.gpu_allocation[f'GPU{i}'] = {'name': cuda_name, 'memory_allocated': f'{gpu_mem_alloc:.2f}G','memory_reserved': f'{gpu_mem_cached:.2f}G'}
+        self.gpu_mem_description = f"{gpu_mem_alloc:.2f}G/{gpu_mem_cached:.2f}G" if self.is_cuda or self.is_mps else f"0.00G/0.00G"
+        if empty_cache or is_init_device:
+            if self.is_cuda: torch.cuda.empty_cache()
+            if self.is_mps: torch.mps.empty_cache()
+
+    def device(self) -> str:
+        return self.device_init
+
+GPU_DEVICE = GPU(is_init_device=True)
+DEVICE = GPU_DEVICE.device()
+
+def get_limited_width_text(string, max_width):
+    return textwrap.fill(string, width=max_width)
